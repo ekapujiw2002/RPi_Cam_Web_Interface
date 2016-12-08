@@ -84,7 +84,7 @@ if [ $# -eq 0 ] || [ "$1" != "q" ]; then
    0 0 0                                          \
    "Cam subfolder:"        1 1   "$rpicamdir"   1 32 15 0  \
    "Autostart:(yes/no)"    2 1   "$autostart"   2 32 15 0  \
-   "Server:(apache/nginx)" 3 1   "$webserver"   3 32 15 0  \
+   "Server:(apache/nginx/lighttpd)" 3 1   "$webserver"   3 32 15 0  \
    "Webport:"              4 1   "$webport"     4 32 15 0  \
    "User:(blank=nologin)"  5 1   "$user"        5 32 15 0  \
    "Password:"             6 1   "$webpasswd"   6 32 15 0  \
@@ -226,6 +226,15 @@ sudo chmod 644 /etc/php5/conf.d/20-apc.ini
 sudo service nginx restart
 }
 
+fn_lighttpd ()
+{
+sudo lighty-enable-mod fastcgi-php
+sudo sed -i "s/^server.document-root.*/server.document-root  = \"\/var\/www$rpicamdirEsc\"/g" /etc/lighttpd/lighttpd.conf
+sudo sed -i "s/^server.port.*/server.port  = $webport/g" /etc/lighttpd/lighttpd.conf
+#sudo service lighttpd restart  
+sudo /etc/init.d/lighttpd force-reload
+ }
+
 fn_motion ()
 {
 sudo sed -i "s/^; netcam_url.*/netcam_url/g" /etc/motion/motion.conf		
@@ -237,9 +246,9 @@ else
    sudo sed -i "s/^netcam_userpass.*/netcam_userpass $user:$webpasswd/g" /etc/motion/motion.conf		
 fi
 sudo sed -i "s/^; on_event_start.*/on_event_start/g" /etc/motion/motion.conf		
-sudo sed -i "s/^on_event_start.*/on_event_start echo -n \'1\' >\/var\/www\/FIFO1/g" /etc/motion/motion.conf		
+sudo sed -i "s/^on_event_start.*/on_event_start echo -n \'1\' >\/var\/www$rpicamdirEsc\/FIFO1/g" /etc/motion/motion.conf		
 sudo sed -i "s/^; on_event_end.*/on_event_end/g" /etc/motion/motion.conf		
-sudo sed -i "s/^on_event_end.*/on_event_end echo -n \'0\' >\/var\/www\/FIFO1/g" /etc/motion/motion.conf		
+sudo sed -i "s/^on_event_end.*/on_event_end echo -n \'0\' >\/var\/www$rpicamdirEsc\/FIFO1/g" /etc/motion/motion.conf		
 sudo sed -i "s/control_port.*/control_port 6642/g" /etc/motion/motion.conf		
 sudo sed -i "s/control_html_output.*/control_html_output off/g" /etc/motion/motion.conf		
 sudo sed -i "s/^output_pictures.*/output_pictures off/g" /etc/motion/motion.conf		
@@ -250,7 +259,6 @@ sudo sed -i "s/^webcam_port.*/webcam_port 0/g" /etc/motion/motion.conf
 sudo sed -i "s/^process_id_file/; process_id_file/g" /etc/motion/motion.conf
 sudo sed -i "s/^videodevice/; videodevice/g" /etc/motion/motion.conf
 sudo sed -i "s/^event_gap 60/event_gap 3/g" /etc/motion/motion.conf
-sudo sed -i "s/www/www$rpicamdirEsc/" /etc/motion/motion.conf
 sudo chown motion:www-data /etc/motion/motion.conf
 sudo chmod 664 /etc/motion/motion.conf
 }
@@ -308,11 +316,14 @@ if [ -e /var/www$rpicamdir/index.html ]; then
 fi
 
 if [ "$webserver" == "apache" ]; then
-   sudo apt-get install -y apache2 php5 php5-cli libapache2-mod-php5 gpac motion zip libav-tools
+   sudo apt-get install -y apache2 php5 php5-cli libapache2-mod-php5 gpac motion zip libav-tools gstreamer1.0-tools
    fn_apache
-else
-   sudo apt-get install -y nginx php5-fpm php5-cli php5-common php-apc apache2-utils gpac motion zip libav-tools
+elif [ "$webserver" == "nginx" ]; then
+   sudo apt-get install -y nginx php5-fpm php5-cli php5-common php-apc apache2-utils gpac motion zip libav-tools gstreamer1.0-tools
    fn_nginx
+elif [ "$webserver" == "lighttpd" ]; then
+   sudo apt-get install -y  lighttpd php5-cli php5-common php5-cgi php5 gpac motion zip libav-tools gstreamer1.0-tools
+   fn_lighttpd
 fi
 
 #Make sure user www-data has bash shell
@@ -323,11 +334,21 @@ if [ ! -e /var/www$rpicamdir/FIFO ]; then
 fi
 sudo chmod 666 /var/www$rpicamdir/FIFO
 
+if [ ! -e /var/www$rpicamdir/FIFO11 ]; then
+   sudo mknod /var/www$rpicamdir/FIFO11 p
+fi
+sudo chmod 666 /var/www$rpicamdir/FIFO11
+
 if [ ! -e /var/www$rpicamdir/FIFO1 ]; then
    sudo mknod /var/www$rpicamdir/FIFO1 p
 fi
+
 sudo chmod 666 /var/www$rpicamdir/FIFO1
 sudo chmod 755 /var/www$rpicamdir/raspizip.sh
+
+if [ ! -d /dev/shm/mjpeg ]; then
+   mkdir /dev/shm/mjpeg
+fi
 
 if [ ! -e /var/www$rpicamdir/cam.jpg ]; then
    sudo ln -sf /run/shm/mjpeg/cam.jpg /var/www$rpicamdir/cam.jpg

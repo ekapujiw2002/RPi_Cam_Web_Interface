@@ -121,6 +121,7 @@ subdir_char @
 #Job macros - prefix with & to make it run asynchronously
 error_soft error_soft.sh
 error_hard error_hard.sh
+start_img start_img.sh
 end_img &end_img.sh
 start_vid &start_vid.sh
 end_vid end_vid.sh
@@ -152,3 +153,4 @@ user_config /var/www/uconfig
 
 #logfile for raspimjpeg, default to merge with scheduler log
 log_file /var/www/scheduleLog.txt
+log_size 5000

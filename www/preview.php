@@ -67,6 +67,18 @@
 
    $zipname = false;
    //Process any POST data
+   if (isset($_POST['timeFilter'])){
+	   $timeFilter = $_POST['timeFilter'];
+	   setcookie("timeFilter", $timeFilter, time() + (86400 * 365), "/");
+   }
+   if (isset($_POST['sortOrder'])){
+	   $sortOrder = $_POST['sortOrder'];
+	   setcookie("sortOrder", $sortOrder, time() + (86400 * 365), "/");
+   }
+   if (isset($_POST['showTypes'])){
+	   $showTypes = $_POST['showTypes'];
+	   setcookie("showTypes", $showTypes, time() + (86400 * 365), "/");
+   }
    // 1 file based commands
    if (isset($_POST['zipdownload'])) {
       $zipname = $_POST['zipdownload'];
@@ -76,6 +88,10 @@
       if(file_exists($zipname)){
           unlink($zipname);
       }                  
+      if(file_exists($zipname . ".count")){
+          unlink($zipname . ".count");
+      }                  
+      writeLog("Downloaded $zipname");
       return;
    }
    else if (isset($_POST['delete1'])) {
@@ -131,18 +147,6 @@
                if ($thumbSize < 32 || $thumbSize > 320) $thumbSize = 96;
                setcookie("thumbSize", $thumbSize, time() + (86400 * 365), "/");
             }        
-            if(!empty($_POST['sortOrder'])) {
-               $sortOrder = $_POST['sortOrder'];
-               setcookie("sortOrder", $sortOrder, time() + (86400 * 365), "/");
-            }        
-            if(!empty($_POST['showTypes'])) {
-               $showTypes = $_POST['showTypes'];
-               setcookie("showTypes", $showTypes, time() + (86400 * 365), "/");
-            }        
-            if(!empty($_POST['timeFilter'])) {
-               $timeFilter = $_POST['timeFilter'];
-               setcookie("timeFilter", $timeFilter, time() + (86400 * 365), "/");
-            }        
             break;
          case 'zipSel':
             if (!empty($_POST['check_list'])) {
@@ -188,9 +192,9 @@
       if (!file_exists($tmp)) {
          mkdir($tmp, 0777, true);
       }
-      $i= 1;
+      $i= 0;
       foreach($tFiles as $tFile) {
-         copy($tFile, $tmp . '/' . sprintf('i_%05d', $i) . '.jpg');
+         symlink($tFile, $tmp . '/' . sprintf('i_%05d', $i) . '.jpg');
          $i++;
       }
       $vFile = substr(dataFilename($bFile), 0, -3) . 'mp4';
@@ -198,7 +202,7 @@
       $fp = fopen(BASE_DIR . '/' . CONVERT_CMD, 'w');
       fwrite($fp, $cmd);
       fclose($fp);
-      $cmd = "(" . str_replace("i_%05d", "$tmp/i_%05d", $cmd) . ' ' . BASE_DIR . '/' . MEDIA_PATH . "/$vFile ; rm -rf $tmp;) >/dev/null 2>&1 &";
+      $cmd = "(" . str_replace("i_%05d", "$tmp/i_%05d", $cmd) . BASE_DIR . '/' . MEDIA_PATH . "/$vFile ; rm -rf $tmp;) >/dev/null 2>&1 &";
       writeLog("start lapse convert:$cmd");
       system($cmd);
       copy(MEDIA_PATH . "/$bFile", MEDIA_PATH . '/' . $vFile . '.v' . getFileIndex($bFile) .THUMBNAIL_EXT);
@@ -275,15 +279,17 @@
       global $sortOrder;
       global $showTypes;
       global $timeFilter, $timeFilterMax;
-      $files = scandir(MEDIA_PATH, $sortOrder - 1);
+      //$files = scandir(MEDIA_PATH, $sortOrder - 1);
+      $files = scandir(MEDIA_PATH);
       $thumbnails = array();
       $nowTime = time();
       foreach($files as $file) {
          if($file != '.' && $file != '..' && isThumbnail($file)) {
+			 $fTime = filemtime(MEDIA_PATH . "/$file");
             if ($timeFilter == 1) {
                $include = true;
             } else {
-               $timeD = $nowTime - filemtime(MEDIA_PATH . "/$file");
+               $timeD = $nowTime - $fTime;
                if ($timeFilter == $timeFilterMax) {
                   $include = ($timeD >= 86400 * ($timeFilter-1));
                } else {
@@ -292,18 +298,18 @@
             }
             if($include) {
                $fType = getFileType($file);
-               if($showTypes == '1') {
-                  $thumbnails[] = $file;
-               }
-               elseif($showTypes == '2' && ($fType == 'i' || $fType == 't')) {
-                  $thumbnails[] = $file;
-              }
-               elseif($showTypes == '3' && ($fType == 'v')) {
-                  $thumbnails[] = $file; 
+               if(($showTypes == '1') || ($showTypes == '2' && ($fType == 'i' || $fType == 't')) || ($showTypes == '3' && ($fType == 'v'))) {
+                  $thumbnails[$file] = $fType . $fTime;
                }
             }
          }
       }
+	  if ($sortOrder == 1) {
+		  asort($thumbnails);
+	  } else {
+		  arsort($thumbnails);
+	  }
+	  $thumbnails = array_keys($thumbnails);
       return $thumbnails;   
    }
    
@@ -330,13 +336,14 @@
       
       echo TXT_PREVIEW . " <input type='text' size='4' name='previewSize' value='$previewSize'>";
       echo "&nbsp;&nbsp;" . TXT_THUMB . " <input type='text' size='3' name='thumbSize' value='$thumbSize'>";
-      echo '&nbsp;Sort&nbsp;<select id="sortOrder" name="sortOrder">';
+      echo "&nbsp;<button class='btn btn-primary' type='submit' name='action' value='updateSizeOrder'>" . BTN_UPDATESIZEORDER . "</button>";
+      echo '&nbsp;Sort&nbsp;<select id="sortOrder" name="sortOrder" onchange="this.form.submit()">';
       if ($sortOrder == 1) $selected = "selected"; else $selected = "";
       echo "<option value='1' $selected>Ascending</option>";
       if ($sortOrder == 2) $selected = "selected"; else $selected = "";
       echo "<option value='2'  $selected>Descending</option>";
       echo '</select>';
-      echo '&nbsp;Types&nbsp;<select id="showTypes" name="showTypes">';
+      echo '&nbsp;Types&nbsp;<select id="showTypes" name="showTypes" onchange="this.form.submit()">';
       if ($showTypes == 1) $selected = "selected"; else $selected = "";
       echo "<option value='1' $selected>Images &amp Videos</option>";
       if ($showTypes == 2) $selected = "selected"; else $selected = "";
@@ -344,7 +351,7 @@
       if ($showTypes == 3) $selected = "selected"; else $selected = "";
       echo "<option value='3'  $selected>Videos only</option>";
       echo '</select>';
-      echo '&nbsp;Filter&nbsp;<select id="timeFilter" name="timeFilter">';
+      echo '&nbsp;Filter&nbsp;<select id="timeFilter" name="timeFilter" onchange="this.form.submit()">';
       if ($timeFilter == 1) $selected = "selected"; else $selected = "";
       echo "<option value='1' $selected>All</option>";
       for($tf = 2; $tf < $timeFilterMax;$tf++) {
@@ -356,10 +363,11 @@
       $tfStr = $timeFilterMax * 24 . '+ hours old';
       echo "<option value='$timeFilterMax'  $selected>$tfStr</option>";
       echo '</select>';
-      echo "&nbsp;<button class='btn btn-primary' type='submit' name='action' value='updateSizeOrder'>" . BTN_UPDATESIZEORDER . "</button><br>";
+	  echo '<br>';
    }
-   
-   $convertCmd = file_get_contents(BASE_DIR . '/' . CONVERT_CMD);
+   $f = fopen(BASE_DIR . '/' . CONVERT_CMD, 'r');
+   $convertCmd = trim(fgets($f));
+   fclose($f);
    $thumbnails = getThumbnails();
 ?>
 <!DOCTYPE html>
@@ -378,7 +386,7 @@
          var linksBase = 'preview.php?preview=';
          var mediaBase = "<?php echo MEDIA_PATH . '/' ?>";
          var previewWidth = <?php echo $previewSize ?>;
-         var convertCmd = "<?php echo file_get_contents(BASE_DIR . '/' . CONVERT_CMD) ?>";
+         var convertCmd = "<?php $f = fopen(BASE_DIR . '/' . CONVERT_CMD, 'r');echo trim(fgets($f));fclose($f); ?>";
       </script>
 
    </head>
@@ -409,7 +417,7 @@
             </h1>
 
             <div id="convert-details">
-               Convert using: <input type='text' size=72 name = 'convertCmd' id='convertCmd' value='<?php echo $convertCmd ?>'><br><br>
+               Convert using: <input type='text' size=72 name = 'convertCmd' id='convertCmd' value='<?php echo htmlentities($convertCmd) ?>'><br><br>
             </div>
 
             <div id='media'></div>

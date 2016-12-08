@@ -227,12 +227,14 @@
                         <tr>
                            <td>Resolutions:</td>
                            <td>Load Preset: <select onchange="set_preset(this.value)">
+								<?php if(!file_exists('uPresets.html')) : ?>
                                  <option value="1920 1080 25 25 2592 1944">Select option...</option>
                                  <option value="1920 1080 25 25 2592 1944">Full HD 1080p 16:9</option>
                                  <option value="1280 0720 25 25 2592 1944">HD-ready 720p 16:9</option>
                                  <option value="1296 972 25 25 2592 1944">Max View 972p 4:3</option>
                                  <option value="768 576 25 25 2592 1944">SD TV 576p 4:3</option>
                                  <option value="1920 1080 01 30 2592 1944">Full HD Timelapse (x30) 1080p 16:9</option>
+								 <?php else : include 'uPresets.html'; endif; ?>
                               </select><br>
                               Custom Values:<br>
                               Video res: <?php makeInput('video_width', 4); ?>x<?php makeInput('video_height', 4); ?>px<br>
@@ -260,6 +262,27 @@
                               Background: <select onchange="send_cmd('ab ' + this.value)"><?php makeOptions($options_ab, 'anno_background'); ?></select>
                            </td>
                         </tr>
+                        <tr>
+                           <td>Annotation size(0-99):</td>
+                           <td>
+                              <?php makeInput('anno_text_size', 3); ?><input type="button" value="OK" onclick="send_cmd('as ' + document.getElementById('anno_text_size').value)">
+                           </td>
+                        </tr>
+                        <tr>
+                           <td>Custom text color:</td>
+                           <td><select id="at_en"><?php makeOptions($options_at_en, 'anno3_custom_text_colour'); ?></select>
+                              y:u:v = <?php makeInput('at_y', 3, 'anno3_custom_text_Y'); ?>:<?php makeInput('at_u', 4, 'anno3_custom_text_U'); ?>:<?php makeInput('at_v', 4, 'anno3_custom_text_V'); ?>
+                              <input type="button" value="OK" onclick="set_at();">
+                           </td>
+                        </tr>
+                        <tr>
+                           <td>Custom background color:</td>
+                           <td><select id="ac_en"><?php makeOptions($options_ac_en, 'anno3_custom_background_colour'); ?></select>
+                              y:u:v = <?php makeInput('ac_y', 3, 'anno3_custom_background_Y'); ?>:<?php makeInput('ac_u', 4, 'anno3_custom_background_U'); ?>:<?php makeInput('ac_v', 4, 'anno3_custom_background_V'); ?>
+                              <input type="button" value="OK" onclick="set_ac();">
+                           </td>
+                           </tr>
+                        <tr>
                         <?php if (file_exists("pilight_on")) pilight_controls(); ?>
                         <tr>
                            <td>Buffer (1000... ms), default 0:</td>
@@ -374,27 +397,6 @@
                            <td>MP4 Boxing mode :</td>
                            <td><select onchange="send_cmd('bo ' + this.value)"><?php makeOptions($options_bo, 'MP4Box'); ?></select></td>
                         </tr>
-                        <tr>
-                           <td>Annotation size(0-99):</td>
-                           <td>
-                              <?php makeInput('anno_text_size', 3); ?><input type="button" value="OK" onclick="send_cmd('as ' + document.getElementById('anno_text_size').value)">
-                           </td>
-                        </tr>
-                        <tr>
-                           <td>Custom text color:</td>
-                           <td><select id="at_en"><?php makeOptions($options_at_en, 'anno3_custom_text_colour'); ?></select>
-                              y:u:v = <?php makeInput('at_y', 3, 'anno3_custom_text_Y'); ?>:<?php makeInput('at_u', 4, 'anno3_custom_text_U'); ?>:<?php makeInput('at_v', 4, 'anno3_custom_text_V'); ?>
-                              <input type="button" value="OK" onclick="set_at();">
-                           </td>
-                        </tr>
-                        <tr>
-                           <td>Custom background color:</td>
-                           <td><select id="ac_en"><?php makeOptions($options_ac_en, 'anno3_custom_background_colour'); ?></select>
-                              y:u:v = <?php makeInput('ac_y', 3, 'anno3_custom_background_Y'); ?>:<?php makeInput('ac_u', 4, 'anno3_custom_background_U'); ?>:<?php makeInput('ac_v', 4, 'anno3_custom_background_V'); ?>
-                              <input type="button" value="OK" onclick="set_ac();">
-                           </td>
-                           </tr>
-                        <tr>
                            <td>Watchdog, default interval 3s, errors 3</td>
                            <td>Interval <?php makeInput('watchdog_interval', 3); ?>s&nbsp;&nbsp;&nbsp;&nbsp;Errors <?php makeInput('watchdog_errors', 3); ?>
                            <input type="button" value="OK" onclick="send_cmd('wd ' + 10 * document.getElementById('watchdog_interval').value + ' ' + document.getElementById('watchdog_errors').value)">
@@ -403,6 +405,12 @@
                         <tr>
                            <td>Motion detect mode :</td>
                            <td><select onchange="send_cmd('mx ' + this.value);setTimeout(function(){location.reload(true);}, 1000);"><?php makeOptions($options_mx, 'motion_external'); ?></select></td>
+                        </tr>
+                        <tr>
+                           <td>Log size lines (default 5000):</td>
+                           <td>
+                              <?php makeInput('log_size', 6); ?><input type="button" value="OK" onclick="send_cmd('ls ' + document.getElementById('log_size').value)">
+                           </td>
                         </tr>
                      </table>
                   </div>
